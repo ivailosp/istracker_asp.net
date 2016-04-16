@@ -31,8 +31,15 @@ namespace istracker_asp.net
         private void handleRecord(string sha, SqlDataReader reader)
         {
             StringBuilder sb = new StringBuilder();
+            String user = reader.GetString(2);
             sb.AppendFormat("{0}<a href=\"{1}/{2}.torrent\" download=\"{3}.torrent\">{3}</a> ", NameLabel.Text, ConfigurationManager.AppSettings["config_upload_dir"], sha, reader.GetString(0));
-            sb.AppendFormat("<a href=\"torrent.aspx?action=delete&sha={0}\">[X]</a>", sha);
+            if (Session["login"] != null)
+            {
+                if (user == (String)Session["username"])
+                {
+                    sb.AppendFormat("<a href=\"torrent.aspx?action=delete&sha={0}\">[X]</a>", sha);
+                }
+            }
             NameLabel.Text = sb.ToString();
             sb.Length = 0;
 
@@ -102,7 +109,7 @@ namespace istracker_asp.net
             using (SqlConnection myConnection = new SqlConnection(DatabaseConnectionString))
             {
                 myConnection.Open();
-                string stmt = "SELECT name, date FROM torrents WHERE sha=@sha";
+                string stmt = "SELECT name, date, username FROM torrents WHERE sha=@sha";
 
                 using (SqlCommand command = new SqlCommand(stmt, myConnection))
                 {

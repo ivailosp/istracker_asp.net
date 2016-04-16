@@ -25,10 +25,10 @@ namespace istracker_asp.net
                     cmdCount.Parameters.AddWithValue("sha", sha);
                     using (SqlDataReader reader = cmdCount.ExecuteReader())
                     {
-                        if (!reader.Read())
+                        if (reader.Read())
                         {
-                            if(reader.GetString(0) !=   (String)Session["username"])
-                                throw new InvalidOperationException("wrong user is not logged in");
+                            if(reader.GetString(0) != (String)Session["username"])
+                                throw new InvalidOperationException("this user can delete this file");
                         }
 
                     }
