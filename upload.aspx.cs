@@ -12,6 +12,10 @@ namespace istracker_asp.net
         static string DatabaseConnectionString = ConfigurationManager.ConnectionStrings["dbConStr"].ConnectionString;
         protected void Page_Load(object sender, EventArgs e)
         {
+            if (Session["login"] == null || (Boolean)Session["login"] == false)
+            {
+                Response.Redirect("login.aspx");
+            }
         }
         private bool is_valid_torrent(ref BENObject obj)
         {
@@ -64,11 +68,12 @@ namespace istracker_asp.net
                         using (SqlConnection myConnection = new SqlConnection(DatabaseConnectionString))
                         {
                             myConnection.Open();
-                            string stmt = "INSERT INTO torrents (sha, name) values(@sha, @name);";
+                            string stmt = "INSERT INTO torrents (sha, name, username) values(@sha, @name, @username);";
                             using (SqlCommand myCommand = new SqlCommand(stmt, myConnection))
                             {
                                 myCommand.Parameters.AddWithValue("sha", sha);
                                 myCommand.Parameters.AddWithValue("name", info.getDictonary()[new BENObject("name")].getString());
+                                 myCommand.Parameters.AddWithValue("username", (String)Session["username"]);
                                 myCommand.ExecuteNonQuery();
                             }
                         }

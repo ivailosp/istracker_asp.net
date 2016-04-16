@@ -11,10 +11,29 @@ namespace istracker_asp.net
         static string DatabaseConnectionString = ConfigurationManager.ConnectionStrings["dbConStr"].ConnectionString;
         private void deleteAction(string sha)
         {
+            if (Session["login"] == null)
+            {
+                throw new InvalidOperationException("user is not logged in");
+            }
+
             using (SqlConnection myConnection = new SqlConnection(DatabaseConnectionString))
             {
                 myConnection.Open();
-                string stmt = "DELETE FROM torrents WHERE sha=@sha;";
+                string stmt = "SELECT username FROM torrents WHERE sha=@sha;";
+                using (SqlCommand cmdCount = new SqlCommand(stmt, myConnection))
+                {
+                    cmdCount.Parameters.AddWithValue("sha", sha);
+                    using (SqlDataReader reader = cmdCount.ExecuteReader())
+                    {
+                        if (!reader.Read())
+                        {
+                            if(reader.GetString(0) !=   (String)Session["username"])
+                                throw new InvalidOperationException("wrong user is not logged in");
+                        }
+
+                    }
+                }
+                stmt = "DELETE FROM torrents WHERE sha=@sha;";
                 using (SqlCommand cmdCount = new SqlCommand(stmt, myConnection))
                 {
                     cmdCount.Parameters.AddWithValue("sha", sha);
@@ -86,9 +105,9 @@ namespace istracker_asp.net
                 myConnection.Open();
                 string stmt;
                 if (max_pages > 0)
-                    stmt = "SELECT sha, name, date FROM torrents ORDER BY id DESC OFFSET @offset ROWS FETCH NEXT @max_pages ROWS ONLY;";
+                    stmt = "SELECT sha, name, date, username FROM torrents ORDER BY id DESC OFFSET @offset ROWS FETCH NEXT @max_pages ROWS ONLY;";
                 else
-                    stmt = "SELECT sha, name, date FROM torrents ORDER BY id DESC";
+                    stmt = "SELECT sha, name, date, username FROM torrents ORDER BY id DESC";
 
                 using (SqlCommand cmdCount = new SqlCommand(stmt, myConnection))
                 {
@@ -99,11 +118,23 @@ namespace istracker_asp.net
                         DataRow row = null;
                         while (reader.Read())
                         {
+                            String user = reader.GetString(3);
                             row = torrentDataTable.NewRow();
                             row["Torrent"] = String.Format("<a href=\"show.aspx?torrent={0}\">{1}</a>", reader.GetString(0), reader.GetString(1));
+                            row["User"] = user;
                             row["Date"] = reader.GetDateTime(2);
                             row["Download"] = String.Format("<a href=\"{0}/{1}.torrent\" download=\"{2}.torrent\">[D]</a>", ConfigurationManager.AppSettings["config_upload_dir"], reader.GetString(0), reader.GetString(1));
-                            row["Delete"] = String.Format("<a href=\"torrent.aspx?action=delete&sha={0}\">[X]</a>", reader.GetString(0));
+                            if (Session["login"] != null)
+                            {
+                                if (user == (String)Session["username"])
+                                {
+                                    row["Delete"] = String.Format("<a href=\"torrent.aspx?action=delete&sha={0}\">[X]</a>", reader.GetString(0));
+                                }
+                                else
+                                {
+                                    row["Delete"] = "";
+                                }
+                            }
                             handlePeers(reader.GetString(0), row);
 
                             torrentDataTable.Rows.Add(row);
@@ -118,6 +149,11 @@ namespace istracker_asp.net
             DataColumn col = null;
 
             col = new DataColumn("Torrent");
+            col.DataType = System.Type.GetType("System.String");
+            ret.Columns.Add(col);
+
+
+            col = new DataColumn("User");
             col.DataType = System.Type.GetType("System.String");
             ret.Columns.Add(col);
 
